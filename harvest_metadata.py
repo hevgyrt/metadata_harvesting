@@ -4,6 +4,7 @@ AUTOR: Trygve Halsne, 25.01.2017
 
 COMMENTS:
     - Implement it object oriented by means of classes
+    - Send to github
 """
 # http://arcticdata.met.no/metamod/oai?verb=ListRecords&set=nmdc&metadataPrefix=dif
 # Start by the tutorial from https://wiki.duraspace.org/display/ISLANDORA112/How+to+Harvest+Metadata+Records
