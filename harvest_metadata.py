@@ -1,6 +1,7 @@
 """ Script for harvesting metadata
-    Inspired by harvest-metadata from https://github.com/steingod/mdharvest/tree/master/src
-    and code from http://lightonphiri.org/blog/metadata-harvesting-via-oai-pmh-using-python
+    Inspired by:
+        - harvest-metadata from https://github.com/steingod/mdharvest/tree/master/src
+        - code from http://lightonphiri.org/blog/metadata-harvesting-via-oai-pmh-using-python
 
 AUTOR: Trygve Halsne, 25.01.2017
 
@@ -9,23 +10,25 @@ USAGE:
 
 COMMENTS:
     - Implement it object oriented by means of classes
-    - Send to github
+    - Implement hprotocol: OGC-CSW, OpenSearch, ISO 19115
 """
 
 # List all recordsets: http://arcticdata.met.no/metamod/oai?verb=ListRecords&set=nmdc&metadataPrefix=dif
 # List identifier: http://arcticdata.met.no/metamod/oai?verb=GetRecord&identifier=urn:x-wmo:md:no.met.arcticdata.test3::ADC_svim-oha-monthly&metadataPrefix=dif
 # Recordset with resumptionToken: http://union.ndltd.org/OAI-PMH/?verb=ListRecords&metadataPrefix=oai_dc
-# Recordset with DIF elements and resumptionToken (NB! Slow server..): http://ws.pangaea.de/oai/provider?verb=ListRecords&metadataPrefix=dif
+# Recordset with DIF elements and resumptionToken (Slow server..): http://ws.pangaea.de/oai/provider?verb=ListRecords&metadataPrefix=dif
 # Recordset with DIF elements and resumptionToken: https://esg.prototype.ucar.edu/oai/repository.htm?verb=ListRecords&metadataPrefix=dif
+# Recordset with gcmd(DIF) elements: http://oai.nerc-bas.ac.uk:8080/oai/provider?verb=ListRecords&metadataPrefix=gcmd
+
+# OGC-CSW recordset: http://metadata.bgs.ac.uk/geonetwork/srv/en/csw?SERVICE=CSW&VERSION=2.0.2&request=GetRecords&constraintLanguage=CQL_TEXT&typeNames=csw:Record&resultType=results&outputSchema=http://www.isotc211.org/2005/gmd
 
 import urllib2 as ul2
 import urllib as ul
 from xml.dom.minidom import parseString
 import codecs
 import sys
+from datetime import datetime
 
-global valid_protocols
-valid_protocols = ['OAI-PMH']
 
 class HarvestMetadata(object):
     def __init__(self, baseURL, records, outputDir, hProtocol): # add outputname also
@@ -35,13 +38,12 @@ class HarvestMetadata(object):
         self.outputDir = outputDir
         self.hProtocol = hProtocol
 
-    #self.valid_protocols = ['OAI-PMH']
-
     def harvest(self):
         baseURL, records, hProtocol = self.baseURL, self.records, self.hProtocol
         if hProtocol == 'OAI-PMH':
-            print "Harvesting metadata \n"
             getRecordsURL = str(baseURL + records)
+            print "Harvesting metadata from: \n\tURL: %s \n\tprotocol: %s \n" % (getRecordsURL,hProtocol)
+            start_time = datetime.now()
 
             # Initial phase
             resumptionToken = self.oaipmh_resumptionToken(getRecordsURL)
@@ -51,9 +53,9 @@ class HarvestMetadata(object):
             pageCounter = 1
 
             while resumptionToken != []:
-                #print "\nHandeling resumptionToken: " + str(pageCounter)
+                print "\n"
+                print "Handeling resumptionToken: %.0f \n" % pageCounter
                 resumptionToken = ul.urlencode({'resumptionToken':resumptionToken}) # create resumptionToken URL parameter
-                print resumptionToken
                 getRecordsURLLoop = str(baseURL+'?verb=ListRecords&'+resumptionToken)
                 dom = self.oaipmh_harvestContent(getRecordsURLLoop)
                 if dom != None:
@@ -64,15 +66,16 @@ class HarvestMetadata(object):
                 resumptionToken = self.oaipmh_resumptionToken(getRecordsURLLoop)
                 pageCounter += 1
 
+            print "\n\nHarvesting took: %s [h:mm:ss]" % str(datetime.now()-start_time)
             return dom
 
         else:
             print 'Protocol %s is not accepted.' % hProtocol
-            sys.exit()
+            exit()
 
     def oaipmh_writeDIFtoFile(self,dom):
         """ Write DIF elements in dom to file """
-        print "Writing DIF elements to disk"
+        print "Writing DIF elements to disk... "
 
         record_elements = dom.getElementsByTagName('record')
         size_dif = dom.getElementsByTagName('DIF').length
@@ -90,7 +93,7 @@ class HarvestMetadata(object):
                                 break;
 
                 if not has_attrib:
-                    sys.stdout.write('Extracting %.f / %d DIF elements \r' %(counter,size_dif))
+                    sys.stdout.write('\tWriting DIF elements %.f / %d \r' %(counter,size_dif))
                     sys.stdout.flush()
                     dif = record.getElementsByTagName('DIF')[0]
                     #tmp_fname ='dif_test_' + str(id_text) + '.xml'
@@ -99,10 +102,11 @@ class HarvestMetadata(object):
                     dif.writexml(output)
                     output.close()
                     counter += 1
+                # Temporary break
                 if counter == 2:
                     break;
         else:
-            print "records did not contain DIF elements"
+            print "\trecords did not contain DIF elements"
 
     def oaipmh_harvestContent(self,URL):
         try:
@@ -111,7 +115,7 @@ class HarvestMetadata(object):
             file.close()
             return parseString(data)
         except ul2.HTTPError:
-            print "There was an error with the request"
+            print "There was an error with the URL request"
 
     def oaipmh_resumptionToken(self,URL):
         try:
@@ -128,16 +132,21 @@ class HarvestMetadata(object):
                 else:
                     return []
         except ul2.HTTPError:
-            print "There was an error with the request"
+            print "There was an error with the URL request"
 
 
-baseURL = 'https://esg.prototype.ucar.edu/oai/repository.htm'
-records = '?verb=ListRecords&metadataPrefix=dif'
+#baseURL = 'https://esg.prototype.ucar.edu/oai/repository.htm'
+#records = '?verb=ListRecords&metadataPrefix=dif'
+
+
+baseURL = 'http://oai.nerc-bas.ac.uk:8080/oai/provider'
+records='?verb=ListRecords&metadataPrefix=gcmd'
 outputDir = 'tmp'
 hProtocol = 'OAI-PMH'
 
 hm = HarvestMetadata(baseURL,records, outputDir, hProtocol)
 content = hm.harvest()
+
 
 '''
 hm = HarvestMetadata(baseURL='http://arcticdata.met.no/metamod/oai',
