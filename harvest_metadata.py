@@ -11,6 +11,7 @@ USAGE:
 COMMENTS:
     - Implement it object oriented by means of classes
     - Implement hprotocol: OGC-CSW, OpenSearch, ISO 19115
+    - Does OGC-CSW metadata have some kind of resumptionToken analog?
 """
 
 # List all recordsets: http://arcticdata.met.no/metamod/oai?verb=ListRecords&set=nmdc&metadataPrefix=dif
@@ -30,7 +31,7 @@ import sys
 from datetime import datetime
 
 
-class HarvestMetadata(object):
+class MetadataHarvester(object):
     def __init__(self, baseURL, records, outputDir, hProtocol): # add outputname also
         """ set variables in class """
         self.baseURL = baseURL
@@ -39,15 +40,20 @@ class HarvestMetadata(object):
         self.hProtocol = hProtocol
 
     def harvest(self):
+        """ Inititates harvester. Chooses strategy depending on
+            harvesting protocol
+        """
         baseURL, records, hProtocol = self.baseURL, self.records, self.hProtocol
+
         if hProtocol == 'OAI-PMH':
+            # Could/should be more sophistiated by means of deciding url properties
             getRecordsURL = str(baseURL + records)
             print "Harvesting metadata from: \n\tURL: %s \n\tprotocol: %s \n" % (getRecordsURL,hProtocol)
             start_time = datetime.now()
 
             # Initial phase
             resumptionToken = self.oaipmh_resumptionToken(getRecordsURL)
-            dom = self.oaipmh_harvestContent(getRecordsURL)
+            dom = self.harvestContent(getRecordsURL)
             if dom != None:
                 self.oaipmh_writeDIFtoFile(dom)
             pageCounter = 1
@@ -57,7 +63,7 @@ class HarvestMetadata(object):
                 print "Handeling resumptionToken: %.0f \n" % pageCounter
                 resumptionToken = ul.urlencode({'resumptionToken':resumptionToken}) # create resumptionToken URL parameter
                 getRecordsURLLoop = str(baseURL+'?verb=ListRecords&'+resumptionToken)
-                dom = self.oaipmh_harvestContent(getRecordsURLLoop)
+                dom = self.harvestContent(getRecordsURLLoop)
                 if dom != None:
                     self.oaipmh_writeDIFtoFile(dom)
                 else:
@@ -67,11 +73,38 @@ class HarvestMetadata(object):
                 pageCounter += 1
 
             print "\n\nHarvesting took: %s [h:mm:ss]" % str(datetime.now()-start_time)
-            return dom
 
+        elif hProtocol == 'OGC-CSW':
+            getRecordsURL = str(baseURL + records)
+            print "Harvesting metadata from: \n\tURL: %s \n\tprotocol: %s \n" % (getRecordsURL,hProtocol)
+            start_time = datetime.now()
+            dom = self.harvestContent(getRecordsURL)
+            if dom != None:
+                self.ogccsw_writeCSWISOtoFile(dom)
+
+            print "\n\nHarvesting took: %s [h:mm:ss]" % str(datetime.now()-start_time)
         else:
             print 'Protocol %s is not accepted.' % hProtocol
             exit()
+
+    def ogccsw_writeCSWISOtoFile(self,dom):
+        """ Write CSW-ISO elements in dom to file """
+        print("Writing CSW ISO metadata elements to disk... ")
+
+        mD_metadata_elements = dom.getElementsByTagName('gmd:MD_Metadata')
+        mDsize = mD_metadata_elements.length
+        size_idInfo = dom.getElementsByTagName('gmd:identificationInfo').length
+
+        counter = 1
+        if mDsize>0:
+            for md_element in mD_metadata_elements:
+                # Check if element contains valid metadata
+                idInfo = md_element.getElementsByTagName('gmd:identificationInfo')
+                if idInfo !=[]:
+                    sys.stdout.write('\tWriting CSW-ISO elements %.f / %d \r' %(counter,size_idInfo))
+                    sys.stdout.flush()
+                    counter += 1
+
 
     def oaipmh_writeDIFtoFile(self,dom):
         """ Write DIF elements in dom to file """
@@ -81,8 +114,7 @@ class HarvestMetadata(object):
         size_dif = dom.getElementsByTagName('DIF').length
 
         if size_dif != 0:
-            counter = 0
-
+            counter = 1
             for record in record_elements:
                 for child in record.childNodes:
                     if str(child.nodeName) == 'header':
@@ -103,19 +135,20 @@ class HarvestMetadata(object):
                     output.close()
                     counter += 1
                 # Temporary break
-                if counter == 2:
+                if counter == 3:
                     break;
         else:
             print "\trecords did not contain DIF elements"
 
-    def oaipmh_harvestContent(self,URL):
+    def harvestContent(self,URL):
         try:
             file = ul2.urlopen(URL,timeout=40)
             data = file.read()
             file.close()
             return parseString(data)
         except ul2.HTTPError:
-            print "There was an error with the URL request"
+            print("There was an error with the URL request. " +
+                  "Could not open or parse content from: \t\n %s" % URL)
 
     def oaipmh_resumptionToken(self,URL):
         try:
@@ -138,49 +171,25 @@ class HarvestMetadata(object):
 #baseURL = 'https://esg.prototype.ucar.edu/oai/repository.htm'
 #records = '?verb=ListRecords&metadataPrefix=dif'
 
-
-baseURL = 'http://oai.nerc-bas.ac.uk:8080/oai/provider'
-records='?verb=ListRecords&metadataPrefix=gcmd'
-outputDir = 'tmp'
-hProtocol = 'OAI-PMH'
-
-hm = HarvestMetadata(baseURL,records, outputDir, hProtocol)
-content = hm.harvest()
-
-
-'''
-hm = HarvestMetadata(baseURL='http://arcticdata.met.no/metamod/oai',
-                      records='?verb=ListRecords&set=nmdc&metadataPrefix=dif',
-                      outputDir='tmp', hProtocol='OAI-PMH')
-content = hm.harvest()
-
-'''
-
-"""
 def main():
-    hm = HarvestMetadata(baseURL='http://arcticdata.met.no/metamod/oai',
-                          records='?verb=GetRecord&identifier=urn:x-wmo:md:no.met.arcticdata.test3::ADC_svim-oha-monthly&metadataPrefix=dif',
-                          outputDir='tmp', hProtocol='OAI-PMH')
-    content = hm.harvest()
-    print content
+    baseURL = 'http://oai.nerc-bas.ac.uk:8080/oai/provider'
+    records='?verb=ListRecords&metadataPrefix=gcmd'
+    outputDir = 'tmp'
+    hProtocol = 'OAI-PMH'
+
+    mh = MetadataHarvester(baseURL,records, outputDir, hProtocol)
+    mh.harvest()
+
+    baseURL = 'http://metadata.bgs.ac.uk/geonetwork/srv/en/csw'
+    records = '?SERVICE=CSW&VERSION=2.0.2&request=GetRecords&constraintLanguage=CQL_TEXT&typeNames=csw:Record&resultType=results&outputSchema=http://www.isotc211.org/2005/gmd'
+    outputDir = 'tmp'
+    hProtocol = 'OGC-CSW'
+
+    mh2 = MetadataHarvester(baseURL,records, outputDir, hProtocol)
+    mh2.harvest()
+
 if __name__ == '__main__':
     main()
-"""
-
-
-"""
-file = ul2.urlopen(getRecordsURL)
-data = file.read()
-file.close()
-
-dom = parseString(data)
-data_xml = dom.toprettyxml()
-response = codecs.open('test.xml','w','utf-8')
-response.write(data_xml)
-"""
-
-#baseURL ='http://arcticdata.met.no/metamod/oai'
-#getRecordsURL = str(baseURL+'?verb=ListRecords&set=nmdc&metadataPrefix=dif')
 
 #baseURL =  'http://dalspace.library.dal.ca:8080/oai/request'
 #arguments = '?verb=ListRecords&metadataPrefix=oai_dc'
