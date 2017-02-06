@@ -32,7 +32,7 @@ from datetime import datetime
 
 
 class MetadataHarvester(object):
-    def __init__(self, baseURL, records, outputDir, hProtocol): # add outputname also
+    def __init__(self, baseURL, records, outputDir, hProtocol): # add outputname also?
         """ set variables in class """
         self.baseURL = baseURL
         self.records = records
@@ -94,6 +94,7 @@ class MetadataHarvester(object):
         mD_metadata_elements = dom.getElementsByTagName('gmd:MD_Metadata')
         mDsize = mD_metadata_elements.length
         size_idInfo = dom.getElementsByTagName('gmd:identificationInfo').length
+        print "\tFound %.f ISO records." %mDsize
 
         counter = 1
         if mDsize>0:
