@@ -291,7 +291,7 @@ def main():
     """
     baseURL = 'https://colhub.met.no/search'
     records = '?q=S2A*'
-    records = '?q=platformname:Sentinel-2%20AND%20ingestionDate:[NOW-2DAY%20TO%20NOW]'
+    records = '?q=platformname:Sentinel-2%20AND%20ingestionDate:[NOW-3DAY%20TO%20NOW]'
     outputDir = 'output/'
     hProtocol = 'OpenSearch'
     mh3 = MetadataHarvester(baseURL,records, outputDir, hProtocol)
