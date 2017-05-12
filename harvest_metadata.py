@@ -130,13 +130,21 @@ class MetadataHarvester(object):
         counter = 1
         has_fname = False
         for entry in entries:
-            #find id element for filename
+            #find ID for filename
+            # Use Title
+            fname = entry.getElementsByTagName('title')[0].childNodes[0].nodeValue
+            if fname != None:
+                has_fname = True
+
+            """
+            # Use UUID
             str_elements = entry.getElementsByTagName('str')
             for s in reversed(str_elements):
                 if s.getAttribute('name') == 'uuid':
                     fname = s.childNodes[0].nodeValue
                     has_fname = True
                     break;
+            """
             if has_fname:
                 sys.stdout.write('\tWriting OpenSearch ENTRY elements %.f / %d \r' %(counter,entries.length))
                 sys.stdout.flush()
@@ -144,8 +152,8 @@ class MetadataHarvester(object):
                 counter += 1
 
             # Temporary break
-            if counter == 3:
-                break;
+            #if counter == 5:
+            #    break;
 
     def ogccsw_writeCSWISOtoFile(self,dom):
         """ Write CSW-ISO elements in dom to file """
@@ -211,7 +219,7 @@ class MetadataHarvester(object):
                     self.write_to_file(dif,fname)
                     counter += 1
                 # Temporary break
-                if counter == 3:
+                if counter == 10:
                     break;
         else:
             print "\trecords did not contain DIF elements"
@@ -265,15 +273,20 @@ class MetadataHarvester(object):
 
 
 def main():
-    """
-    baseURL = 'http://oai.nerc-bas.ac.uk:8080/oai/provider'
-    records='?verb=ListRecords&metadataPrefix=gcmd'
+
+    #baseURL = 'http://oai.nerc-bas.ac.uk:8080/oai/provider'
+    #records='?verb=ListRecords&metadataPrefix=gcmd'
+    #baseURL = 'http://union.ndltd.org/OAI-PMH/'
+    #records = '?verb=ListRecords&metadataPrefix=oai_dc'
+    baseURL = 'https://esg.prototype.ucar.edu/oai/repository.htm'
+    records = '?verb=ListRecords&metadataPrefix=dif'
     outputDir = 'output/'
     hProtocol = 'OAI-PMH'
 
     mh = MetadataHarvester(baseURL,records, outputDir, hProtocol)
     mh.harvest()
 
+    '''
     baseURL = 'http://metadata.bgs.ac.uk/geonetwork/srv/en/csw'
     records = '?SERVICE=CSW&VERSION=2.0.2&request=GetRecords&constraintLanguage=CQL_TEXT&typeNames=csw:Record&resultType=results&outputSchema=http://www.isotc211.org/2005/gmd'
     outputDir = 'output/'
@@ -281,6 +294,7 @@ def main():
 
     mh2 = MetadataHarvester(baseURL,records, outputDir, hProtocol)
     mh2.harvest()
+    '''
     """
 
     with open('myValues.txt','r') as code:
@@ -289,12 +303,14 @@ def main():
     cred = cred_tmp.split(';')
     baseURL = 'https://colhub.met.no/search'
     records = '?q=S2A*'
-    records = '?q=platformname:Sentinel-1%20AND%20ingestionDate:[NOW-2DAY%20TO%20NOW]'
+    #records = '?q=platformname:Sentinel-1%20AND%20ingestionDate:[NOW-2DAY%20TO%20NOW]'
+    #records = '?q=S2A_MSIL1C_20170116T105401_N0204_R051_T32VNM_20170116T105355'
+    #records = '?q=*'
     outputDir = 'output/'
     hProtocol = 'OpenSearch'
     mh3 = MetadataHarvester(baseURL,records, outputDir, hProtocol,cred[0],cred[1])
     mh3.harvest()
-
+    """
 if __name__ == '__main__':
     main()
 
