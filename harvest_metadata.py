@@ -87,7 +87,7 @@ class MetadataHarvester(object):
             print "Harvesting metadata from: \n\tURL: %s \n\tprotocol: %s \n" % (getRecordsURL,hProtocol)
             start_time = datetime.now()
 
-            dom = self.harvestContent(getRecordsURL,credentials=True,uname="evgyrt",pw="a test user passphrase")
+            dom = self.harvestContent(getRecordsURL,credentials=True,uname=uname,pw=pw)
             if dom != None:
                 self.openSearch_writeENTRYtoFile(dom)
 
