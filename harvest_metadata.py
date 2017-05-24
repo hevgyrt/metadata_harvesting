@@ -273,6 +273,7 @@ class MetadataHarvester(object):
 
 
 def main():
+    ''' Main method with examples for isolated running of script'''
 
     #baseURL = 'http://oai.nerc-bas.ac.uk:8080/oai/provider'
     #records='?verb=ListRecords&metadataPrefix=gcmd'
