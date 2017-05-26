@@ -1,3 +1,4 @@
+#!/usr/bin/python2.7
 """ Script for harvesting metadata
     Inspired by:
         - harvest-metadata from https://github.com/steingod/mdharvest/tree/master/src
@@ -8,13 +9,12 @@ AUTHOR: Trygve Halsne, 25.01.2017
 USAGE:
     - Currently initiaded with internal methods in class
 
-COMMENTS:
+COMMENTS (for further development):
     - Implement it object oriented by means of classes
     - Implement hprotocol: OGC-CSW, OpenSearch, ISO 19115
     - Does OGC-CSW metadata have some kind of resumptionToken analog?
-    - Should/must implement with a "from_date" variable in order to avoid listing of same metadata
+    - When writing OAI-PMH records: Check if record contains header and has status=deleted..
 """
-
 
 import urllib2 as ul2
 import urllib as ul
@@ -130,14 +130,12 @@ class MetadataHarvester(object):
         counter = 1
         has_fname = False
         for entry in entries:
-            #find ID for filename
-            # Use Title
+            # Depending on usage; choose naming convention
             fname = entry.getElementsByTagName('title')[0].childNodes[0].nodeValue
             if fname != None:
                 has_fname = True
-
             """
-            # Use UUID
+            # Use UUID as naming convention
             str_elements = entry.getElementsByTagName('str')
             for s in reversed(str_elements):
                 if s.getAttribute('name') == 'uuid':
@@ -150,8 +148,10 @@ class MetadataHarvester(object):
                 sys.stdout.flush()
                 self.write_to_file(entry,fname)
                 counter += 1
+            else:
+                sys.stdout.write('\tNo filename availible. Not able to write OpenSearch entry (%s) to file' % dom)
 
-            # Temporary break
+            # Temporary break when testing
             #if counter == 5:
             #    break;
 
@@ -185,7 +185,7 @@ class MetadataHarvester(object):
                     sys.stdout.flush()
                     self.write_to_file(md_element,fname)
                     counter += 1
-                # Temporary break
+                # Temporary break for testing
                 if counter == 3:
                     break;
 
@@ -201,15 +201,10 @@ class MetadataHarvester(object):
             counter = 1
             for record in record_elements:
                 for child in record.childNodes:
+                    # If record contains header, check if dataset is deleted. (Not implemented)
                     if str(child.nodeName) == 'header':
                         has_attrib = child.hasAttributes()
-                        """
-                        for gchild in child.childNodes:
-                            if gchild.nodeName == 'identifier':
-                                id_text = gchild.childNodes[0].nodeValue
-                                print id_text
-                                break;
-                        """
+
                 if not has_attrib:
                     sys.stdout.write('\tWriting DIF elements %.f / %d \r' %(counter,size_dif))
                     sys.stdout.flush()
@@ -218,7 +213,7 @@ class MetadataHarvester(object):
                     fname = dif.getElementsByTagName('Entry_ID')[0].childNodes[0].nodeValue
                     self.write_to_file(dif,fname)
                     counter += 1
-                # Temporary break
+                # Temporary break for testing
                 if counter == 10:
                     break;
         else:
@@ -237,9 +232,10 @@ class MetadataHarvester(object):
         output.close()
 
     def harvestContent(self,URL,credentials=False,uname="foo",pw="bar"):
+        """ Function for harvesting content from URL."""
         try:
             if not credentials:
-                file = ul2.urlopen(URL,timeout=40)
+                file = ul2.urlopen(URL,timeout=40) # Timeout depends on user
                 data = file.read()
                 file.close()
                 return parseString(data)
@@ -255,6 +251,7 @@ class MetadataHarvester(object):
                   "Could not open or parse content from: \n\t %s" % URL)
 
     def oaipmh_resumptionToken(self,URL):
+        """ Function for handeling resumptionToken in OAI-PMH"""
         try:
             file = ul2.urlopen(URL, timeout=40)
             data = file.read()
@@ -315,7 +312,7 @@ def main():
 if __name__ == '__main__':
     main()
 
-# TEMPORARY VALUES
+# Some TEMPORARY VALUES
 # List all recordsets: http://arcticdata.met.no/metamod/oai?verb=ListRecords&set=nmdc&metadataPrefix=dif
 # List identifier: http://arcticdata.met.no/metamod/oai?verb=GetRecord&identifier=urn:x-wmo:md:no.met.arcticdata.test3::ADC_svim-oha-monthly&metadataPrefix=dif
 # Recordset with resumptionToken: http://union.ndltd.org/OAI-PMH/?verb=ListRecords&metadataPrefix=oai_dc
