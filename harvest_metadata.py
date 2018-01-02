@@ -1,5 +1,9 @@
 #!/usr/bin/python2.7
-""" Script for harvesting metadata
+""" Script for harvesting metadata from a variety of protocols i.e:
+        - OAI-PMH
+        - OGC-CSW
+        - OpenSearch
+
     Inspired by:
         - harvest-metadata from https://github.com/steingod/mdharvest/tree/master/src
         - code from http://lightonphiri.org/blog/metadata-harvesting-via-oai-pmh-using-python
@@ -7,13 +11,12 @@
 AUTHOR: Trygve Halsne, 25.01.2017
 
 USAGE:
-    - Currently initiaded with internal methods in class
+    Harvesting initiated with internal methods in class. Run this script and
+    edit the main() method or import class in other scripts.
 
 COMMENTS (for further development):
-    - Implement it object oriented by means of classes
-    - Implement hprotocol: OGC-CSW, OpenSearch, ISO 19115
+    - Implement hprotocol: ISO 19115
     - Does OGC-CSW metadata have some kind of resumptionToken analog?
-    - When writing OAI-PMH records: Check if record contains header and has status=deleted..
 """
 
 import urllib2 as ul2
@@ -26,10 +29,18 @@ import lxml.etree as ET
 
 
 class MetadataHarvester(object):
-    """ Creates metadata-harvester object with methods for harvesting and writing
+    """ Creates metadata-harvester object with methods for harvesting and writing.
     """
     def __init__(self, baseURL, records, outputDir, hProtocol, username=None, pw=None):
-        """ set variables in class """
+        """ Set initial variables in class
+
+            baseURL - URL to repository i.e. Internet host and port
+            records - key-value arguments for querying database
+            outputDir - Output directory for data harvested
+            hProtocol - Harvesting protocol. E.g. OAI-PMH, OpenSearch
+            username - In case authentication is required from server
+            pw - In case authentication is required from server
+            """
         self.baseURL = baseURL
         self.records = records
         self.outputDir = outputDir
@@ -44,7 +55,7 @@ class MetadataHarvester(object):
         baseURL, records, hProtocol, uname, pw = self.baseURL, self.records, self.hProtocol, self.username, self.pw
 
         if hProtocol == 'OAI-PMH':
-            # Could/should be more sophistiated by means of deciding url properties
+
             getRecordsURL = str(baseURL + records)
             print "Harvesting metadata from: \n\tURL: %s \n\tprotocol: %s \n" % (getRecordsURL,hProtocol)
             start_time = datetime.now()
@@ -61,6 +72,7 @@ class MetadataHarvester(object):
                 print "Handling resumptionToken: %.0f \n" % pageCounter
                 resumptionToken = ul.urlencode({'resumptionToken':resumptionToken}) # create resumptionToken URL parameter
                 getRecordsURLLoop = str(baseURL+'?verb=ListRecords&'+resumptionToken)
+                print getRecordsURLLoop
                 dom = self.harvestContent(getRecordsURLLoop)
                 if dom != None:
                     self.oaipmh_writeDIFtoFile(dom)
@@ -151,9 +163,6 @@ class MetadataHarvester(object):
             else:
                 sys.stdout.write('\tNo filename availible. Not able to write OpenSearch entry (%s) to file' % dom)
 
-            # Temporary break when testing
-            #if counter == 5:
-            #    break;
 
     def ogccsw_writeCSWISOtoFile(self,dom):
         """ Write CSW-ISO elements in dom to file """
@@ -185,37 +194,43 @@ class MetadataHarvester(object):
                     sys.stdout.flush()
                     self.write_to_file(md_element,fname)
                     counter += 1
-                # Temporary break for testing
-                if counter == 3:
-                    break;
 
 
-    def oaipmh_writeDIFtoFile(self,dom):
-        """ Write DIF elements in dom to file """
-        print "Writing DIF elements to disk... "
+    def oaipmh_writeDIFtoFile(self, dom):
+        """ Write OAI-PMH metadata elements to file
+            dom - minidom object
+
+            NOTE: If record contains header, extract unique identifier and
+            check if dataset is deleted by means of having an attribute.
+        """
+        print "Writing OAI-PMH metadata to disk... "
 
         record_elements = dom.getElementsByTagName('record')
-        size_dif = dom.getElementsByTagName('DIF').length
+        nb_elements = len(record_elements)
 
-        if size_dif != 0:
+        if nb_elements != 0:
             counter = 1
             for record in record_elements:
                 for child in record.childNodes:
-                    # If record contains header, check if dataset is deleted. (Not implemented)
                     if str(child.nodeName) == 'header':
+                        out_fname = child.getElementsByTagName('identifier')[0].childNodes[0].nodeValue
                         has_attrib = child.hasAttributes()
 
                 if not has_attrib:
-                    sys.stdout.write('\tWriting DIF elements %.f / %d \r' %(counter,size_dif))
+                    sys.stdout.write('\tWriting metadata element %.f / %d \r' %(counter,nb_elements))
                     sys.stdout.flush()
-                    dif = record.getElementsByTagName('DIF')[0]
-                    #use unique filename
-                    fname = dif.getElementsByTagName('Entry_ID')[0].childNodes[0].nodeValue
-                    self.write_to_file(dif,fname)
+                    md_element = record.getElementsByTagName('metadata')[0]
+                    for cn in md_element.childNodes:
+                        if cn.hasChildNodes():
+                            element = cn
+                            break
+                    if 'element' in locals():
+                        self.write_to_file(element,out_fname)
+                    else:
+                        print "\tRecord contains insufficient metadata. Change metadataPrefix?"
                     counter += 1
-                # Temporary break for testing
-                if counter == 10:
-                    break;
+                else:
+                    print "\tRecord: %s is deleted. Thus, not harvested." % out_fname
         else:
             print "\trecords did not contain DIF elements"
 
@@ -235,7 +250,7 @@ class MetadataHarvester(object):
         """ Function for harvesting content from URL."""
         try:
             if not credentials:
-                file = ul2.urlopen(URL,timeout=40) # Timeout depends on user
+                file = ul2.urlopen(URL,timeout=40) # Timeout depends on user/server
                 data = file.read()
                 file.close()
                 return parseString(data)
@@ -272,17 +287,13 @@ class MetadataHarvester(object):
 def main():
     ''' Main method with examples for isolated running of script'''
 
-    #baseURL = 'http://oai.nerc-bas.ac.uk:8080/oai/provider'
-    #records='?verb=ListRecords&metadataPrefix=gcmd'
-    #baseURL = 'http://union.ndltd.org/OAI-PMH/'
-    #records = '?verb=ListRecords&metadataPrefix=oai_dc'
-    #baseURL = 'https://esg.prototype.ucar.edu/oai/repository.htm'
-    #records = '?verb=ListRecords&metadataPrefix=dif'
-    #outputDir = 'output/'
-    #hProtocol = 'OAI-PMH'
+    baseURL = 'https://oaipmh.met.no/oai/'
+    records = '?verb=ListRecords&set=NBS&metadataPrefix=mmd'
+    outputDir = 'output/'
+    hProtocol = 'OAI-PMH'
 
-    #mh = MetadataHarvester(baseURL,records, outputDir, hProtocol)
-    #mh.harvest()
+    mh = MetadataHarvester(baseURL,records, outputDir, hProtocol)
+    mh.harvest()
 
     '''
     baseURL = 'http://metadata.bgs.ac.uk/geonetwork/srv/en/csw'
@@ -299,19 +310,17 @@ def main():
 
     cred = cred_tmp.split(';')
     baseURL = 'https://colhub.met.no/search'
-    records = '?q=*'
+    #records = '?q=*'
     #records = '?q=platformname:Sentinel-1%20AND%20ingestionDate:[NOW-2DAY%20TO%20NOW]'
-    #records = '?q=S2A_MSIL1C_20170116T105401_N0204_R051_T32VNM_20170116T105355'
-    #records = '?q=S1A_IW_GRDM_1SDV_20161206T060347_20161206T060447_014255_0170E4_A49B'
     #records = '?q=S2A_MSIL1C*%20AND%20footprint:%22Intersects(POLYGON((-10.25%2071.41,%20-10.20%2070.61,%20-6.79%2070.60,%20-6.70%2071.44,%20-10.25%2071.41)))%22%20AND%20ingestiondate:[NOW-3HOUR%20TO%20NOW]'
-    #records = '?q=S2A_OPER_PRD_MSIL1C_PDMC_20160211T195349_R051_V20160211T105155_20160211T105155'
-    #records = '?q=S2B_MSIL1C_20170820T115639_N0205_R066_T35XMG_20170820T115639'
+    records = '?q=S2B_MSIL1C_20170820T115639_N0205_R066_T35XMG_20170820T115639'
     #records = '?q=S2B_MSIL1C*%20AND%20(%20footprint:"Intersects(POLYGON((3.04675852309276%2071.68036004870032,41.54285227309276%2071.68036004870032,41.54285227309276%2081.47413661551582,3.04675852309276%2081.47413661551582,3.04675852309276%2071.68036004870032)))"%20)%20AND%20ingestiondate:[NOW-60HOUR%20TO%20NOW-5HOUR]'
 
     outputDir = 'output/'
     hProtocol = 'OpenSearch'
     mh3 = MetadataHarvester(baseURL,records, outputDir, hProtocol,cred[0],cred[1])
     mh3.harvest()
+
 if __name__ == '__main__':
     main()
 
