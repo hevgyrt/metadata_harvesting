@@ -64,7 +64,7 @@ class MetadataHarvester(object):
             resumptionToken = self.oaipmh_resumptionToken(getRecordsURL)
             dom = self.harvestContent(getRecordsURL)
             if dom != None:
-                self.oaipmh_writeDIFtoFile(dom)
+                self.oaipmh_writeToFile(dom)
             pageCounter = 1
 
             while resumptionToken != []:
@@ -75,7 +75,7 @@ class MetadataHarvester(object):
                 print getRecordsURLLoop
                 dom = self.harvestContent(getRecordsURLLoop)
                 if dom != None:
-                    self.oaipmh_writeDIFtoFile(dom)
+                    self.oaipmh_writeToFile(dom)
                 else:
                     print "dom = " + str(dom) + ', for page ' + str(pageCounter)
 
@@ -196,7 +196,7 @@ class MetadataHarvester(object):
                     counter += 1
 
 
-    def oaipmh_writeDIFtoFile(self, dom):
+    def oaipmh_writeToFile(self, dom):
         """ Write OAI-PMH metadata elements to file
             dom - minidom object
 
