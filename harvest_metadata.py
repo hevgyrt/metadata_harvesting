@@ -292,8 +292,8 @@ def main():
     outputDir = 'output/'
     hProtocol = 'OAI-PMH'
 
-    mh = MetadataHarvester(baseURL,records, outputDir, hProtocol)
-    mh.harvest()
+    #mh = MetadataHarvester(baseURL,records, outputDir, hProtocol)
+    #mh.harvest()
 
     '''
     baseURL = 'http://metadata.bgs.ac.uk/geonetwork/srv/en/csw'
@@ -313,8 +313,10 @@ def main():
     #records = '?q=*'
     #records = '?q=platformname:Sentinel-1%20AND%20ingestionDate:[NOW-2DAY%20TO%20NOW]'
     #records = '?q=S2A_MSIL1C*%20AND%20footprint:%22Intersects(POLYGON((-10.25%2071.41,%20-10.20%2070.61,%20-6.79%2070.60,%20-6.70%2071.44,%20-10.25%2071.41)))%22%20AND%20ingestiondate:[NOW-3HOUR%20TO%20NOW]'
-    records = '?q=S2B_MSIL1C_20170820T115639_N0205_R066_T35XMG_20170820T115639'
-    #records = '?q=S2B_MSIL1C*%20AND%20(%20footprint:"Intersects(POLYGON((3.04675852309276%2071.68036004870032,41.54285227309276%2071.68036004870032,41.54285227309276%2081.47413661551582,3.04675852309276%2081.47413661551582,3.04675852309276%2071.68036004870032)))"%20)%20AND%20ingestiondate:[NOW-60HOUR%20TO%20NOW-5HOUR]'
+    records = '?&q=S1A_IW_GRDH_*'
+    records = '?&q=S3A_OL_1_EFR____20180213T101722_20180213T102022_20180214T135646_0179_028_008_1980_LN1_O_NT_002'
+    records = '?&q=(%20footprint:"Intersects(POLYGON((-10.84%2056.73,33.63%2056.73,33.63%2072.96,-10.84%2072.96,-10.84%2056.73)))"%20)%20AND%20ingestiondate:[NOW-2HOUR%20TO%20NOW]%20AND%20(platformname:Sentinel-1%20AND%20producttype:GRD)'
+    records = '?q=S2A_MSIL1C*%20AND%20(%20footprint:%22Intersects(POLYGON((-10.839960226907229%2056.73364306430818,33.632696023092755%2056.73364306430818,33.632696023092755%2072.96099707011066,-10.839960226907229%2072.96099707011066,-10.839960226907229%2056.73364306430818)))%22%20)%20AND%20ingestiondate:[2018-03-22T18:00:00.000Z%20TO%202018-03-22T20:00:59.999Z%20]'
 
     outputDir = 'output/'
     hProtocol = 'OpenSearch'
